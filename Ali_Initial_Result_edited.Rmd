@@ -1,0 +1,338 @@
+---
+title: "Ali_Initial_Result"
+author: "Ali"
+date: '2022-07-10'
+output:
+  word_document: default
+  html_document: default
+  pdf_document: default
+editor_options: 
+  chunk_output_type: inline
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+summary(cars)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+```{r}
+getwd()
+```
+
+```{r}
+library(caret)
+library(ROSE)
+library(tidyverse)
+library(e1071)
+library(glmnet)
+library(MLmetrics)
+library(caretEnsemble)
+library(kernlab)
+library(mlbench)
+library(varImp)
+library(Hmisc)
+library(randomForest)
+library(PerformanceAnalytics)
+library(MASS)
+```
+
+```{r}
+Prmry<-read.csv("data.csv", stringsAsFactors = F, na.strings = c("","?","!","NA","na"))
+#Prmry<-read.csv(file.choose(), stringsAsFactors = F, na.strings = c("","?","!","NA","na"))
+BKRPTdata<-Prmry
+#str(Prmry)
+```
+Histogram can help us to show the distribution of each attribute. Here I will show the procedure to show diagram for ONE attribute. In the final result I will do the histogram for all the significant attributes.
+```{r}
+ROADepBI<-Prmry$ROA.C..before.interest.and.depreciation.before.interest
+summary(ROADepBI)
+```
+#typeof(ROADepBI)
+#class(ROADepBI)
+```{r}
+hist(ROADepBI, freq = F, breaks=40)
+lines(density(ROADepBI),col= 3,lwd=3)
+```
+With the help of boxplot, I can see the outliers as below. Here I am showing the procedure to find outliers for one attribute. 
+```{r}
+#boxplot(ROADepBI, main="ROADepBI WITH outliers ", horizontal=F, col="blue")
+boxplot(ROADepBI, main="ROA.C..before.interest.and.depreciation.before.interest", ylab="count", horizontal=F, col="red")
+pout <- boxplot.stats(Prmry$ROA.C..before.interest.and.depreciation.before.interest)$out
+while (length(pout)>0) {
+  outrecs <- which(ROADepBI %in% pout)
+  ROADepBI[outrecs] <- NA
+  ROADepBI[is.na(ROADepBI)] <- median(ROADepBI, na.rm = T)
+  pout <- boxplot.stats(ROADepBI)$out
+}  
+```
+{#length(pout)
+```{r}
+while (length(pout)>0){
+  outrecs<-which(ROADepBI%in%pout)
+  ROADepBI[outrecs]<-NA
+  ROADepBI[is.na(ROADepBI)]<-median(ROADepBI,na.rm=T)
+} 
+```
+
+```{r}
+summary(ROADepBI)
+```
+
+```{r}
+Prmry$ROA.C..before.interest.and.depreciation.before.interest<- ROADepBI
+hist(Prmry$ROA.C..before.interest.and.depreciation.before.interest, freq = F, breaks=40, col="red")
+boxplot(Prmry$ROA.C..before.interest.and.depreciation.before.interest, main="ROADepBI without outliers", col="red")
+pout_2<-boxplot.stats(Prmry$ROA.C..before.interest.and.depreciation.before.interest)$out
+length(pout_2)
+```
+
+```{r}
+boxplot(ROADepBI, main="ROA.C..before.interest.and.depreciation.before.interest", horizontal=F, col="red")
+```
+To reduce the length of attributes, I renamed them in shorter form. These are as follows:
+```{r}
+names(Prmry)[names(Prmry)=="ROA.C..before.interest.and.depreciation.before.interest"]<-"ROA_Dep_B_I"
+names(Prmry)[names(Prmry)=="ROA.A..before.interest.and...after.tax"]<-"ROA_BIn_AfT"
+names(Prmry)[names(Prmry)=="ROA.B..before.interest.and.depreciation.after.tax"]<-"ROA_BIn_Dep_Af_T"
+names(Prmry)[names(Prmry)=="Operating.Gross.Margin"]<-"OpGrssMrgn"
+names(Prmry)[names(Prmry)=="Realized.Sales.Gross.Margin"]<-"RlzdSGrssMrgn"
+names(Prmry)[names(Prmry)=="Operating.Profit.Rate"]<-"OpPrRate"
+names(Prmry)[names(Prmry)=="Pre.tax.net.Interest.Rate"]<-"PrTxNtIntRate"
+names(Prmry)[names(Prmry)=="After.tax.net.Interest.Rate"]<-"AfTxNtIntRate"
+names(Prmry)[names(Prmry)=="Non.industry.income.and.expenditure.revenue"]<-"NnIndInc_ExpRev"
+names(Prmry)[names(Prmry)=="Continuous.interest.rate..after.tax."]<-"ContIntRateAfTx"
+names(Prmry)[names(Prmry)=="Operating.Expense.Rate"]<-"OpExpRate"
+names(Prmry)[names(Prmry)=="Research.and.development.expense.rate"]<-"R_DExpRate"
+names(Prmry)[names(Prmry)=="Interest.bearing.debt.interest.rate"]<-"IntBearDebtIntRate" 
+names(Prmry)[names(Prmry)=="Net.Value.Per.Share..B."]<-"NValPrShare_B"
+names(Prmry)[names(Prmry)=="Net.Value.Per.Share..A."]<-"NValPrShare_A"
+names(Prmry)[names(Prmry)=="Net.Value.Per.Share..C."]<-"NValPrShare_C"                            
+names(Prmry)[names(Prmry)=="Persistent.EPS.in.the.Last.Four.Seasons"]<-"PersEPSLst4Seasn"
+names(Prmry)[names(Prmry)=="Cash.Flow.Per.Share"]<-"CFPerShr"
+#names(Prmry)[names(Prmry)=="Revenue.Per.Share..Yuan.Â.."]<-"RevPerShrYuanA"              
+names(Prmry)[names(Prmry)=="Revenue.Per.Share..Yuan..."]<-"RevPerShrYuanA"
+names(Prmry)[names(Prmry)=="Operating.Profit.Per.Share..Yuan.Â.."]<-"OpPrftPerShrA"
+names(Prmry)[names(Prmry)=="Per.Share.Net.profit.before.tax..Yuan.Â.."]<-"PShrNProbTaxA"
+names(Prmry)[names(Prmry)=="Realized.Sales.Gross.Profit.Growth.Rate"]<-"RlzdSGPrftGrwRate"
+names(Prmry)[names(Prmry)=="Operating.Profit.Growth.Rate"]<-"OpProftGrwthRate"
+names(Prmry)[names(Prmry)=="After.tax.Net.Profit.Growth.Rate"]<-"AftTxNPrfGrwRte"
+names(Prmry)[names(Prmry)=="Regular.Net.Profit.Growth.Rate"]<-"RgNPrfGrwRte"              
+names(Prmry)[names(Prmry)=="Continuous.Net.Profit.Growth.Rate"]<-"CntNPrfGrwRte"
+names(Prmry)[names(Prmry)=="Total.Asset.Growth.Rate"]<-"TotAssGrwRte"
+names(Prmry)[names(Prmry)=="Net.Value.Growth.Rate"]<-"NtValGrwRte"              
+names(Prmry)[names(Prmry)=="Total.Asset.Return.Growth.Rate.Ratio"]<-"TotAssRtrntoGrwRte"
+names(Prmry)[names(Prmry)=="Total.debt.Total.net.worth"]<-"TotDbttoTotNtWrth"
+names(Prmry)[names(Prmry)=="Long.term.fund.suitability.ratio..A."]<-"LTFndSuitltyRatio"              
+names(Prmry)[names(Prmry)=="Contingent.liabilities.Net.worth"]<-"CntgntLiabNtWorth"
+names(Prmry)[names(Prmry)=="Operating.profit.Paid.in.capital"]<-"OpPrfPaidinCap"
+names(Prmry)[names(Prmry)=="Inventory.and.accounts.receivable.Net.value"]<-"InvAccReceNetValue"              
+names(Prmry)[names(Prmry)=="Net.profit.before.tax.Paid.in.capital"]<-"NPrfbTxPdinCap"
+names(Prmry)[names(Prmry)=="Total.Asset.Turnover"]<-"TtAsstTrOvr"
+names(Prmry)[names(Prmry)=="Accounts.Receivable.Turnover"]<-"AccRecTrn"              
+names(Prmry)[names(Prmry)=="Average.Collection.Days"]<-"AvCollDay"
+names(Prmry)[names(Prmry)=="Inventory.Turnover.Rate..times."]<-"InvTrRtetimes"
+names(Prmry)[names(Prmry)=="Fixed.Assets.Turnover.Frequency"]<-"FxdAssTrnFrq"              
+names(Prmry)[names(Prmry)=="Net.Worth.Turnover.Rate..times."]<-"NWrthTrnRtetimes"
+names(Prmry)[names(Prmry)=="Operating.profit.per.person"]<-"OpPrfprPrsn"
+names(Prmry)[names(Prmry)=="Allocation.rate.per.person"]<-"AllRteprPrsn"
+names(Prmry)[names(Prmry)=="Working.Capital.to.Total.Assets"]<-"WrkngCaptottAsst"
+names(Prmry)[names(Prmry)=="Quick.Assets.Total.Assets"]<-"QckAsstTtlAsst"
+names(Prmry)[names(Prmry)=="Current.Assets.Total.Assets"]<-"CrntAsstlAsst"
+names(Prmry)[names(Prmry)=="Cash.Total.Assets"]<-"CshTtAsst"
+names(Prmry)[names(Prmry)=="Quick.Assets.Current.Liability"]<-"QckAsstCrntLblty"
+names(Prmry)[names(Prmry)=="Cash.Current.Liability"]<-"CshCrntLblty"
+names(Prmry)[names(Prmry)=="Current.Liability.to.Assets"]<-"CrntLbltytoAsst"
+names(Prmry)[names(Prmry)=="Operating.Funds.to.Liability"]<-"OpFndtoLblty"
+names(Prmry)[names(Prmry)=="Inventory.Working.Capital"]<-"InvWrkCap"
+names(Prmry)[names(Prmry)=="Inventory.Current.Liability"]<-"InvCrntLblty"
+names(Prmry)[names(Prmry)=="Current.Liabilities.Liability"]<-"CrntLbltsLblty"
+names(Prmry)[names(Prmry)=="Working.Capital.Equity"]<-"WrkngCapEqty"
+names(Prmry)[names(Prmry)=="Current.Liabilities.Equity"]<-"CrntLbltyEqty"
+names(Prmry)[names(Prmry)=="Long.term.Liability.to.Current.Assets"]<-"LngTrmLbltytoCrntAsst"
+names(Prmry)[names(Prmry)=="Retained.Earnings.to.Total.Assets"]<-"RtnErntoTtlAsst"
+names(Prmry)[names(Prmry)=="Total.income.Total.expense"]<-"TtlIncmtoTtlExp"
+names(Prmry)[names(Prmry)=="Total.expense.Assets"]<-"TtlExptoAsst"
+names(Prmry)[names(Prmry)=="Current.Asset.Turnover.Rate"]<-"CrntAsstTrnRte"
+names(Prmry)[names(Prmry)=="Quick.Asset.Turnover.Rate"]<-"QckAsstTrnTre"
+names(Prmry)[names(Prmry)=="Working.capitcal.Turnover.Rate"]<-"WrngCapTrnRte"
+names(Prmry)[names(Prmry)=="Cash.Turnover.Rate"]<-"CshTrnRte"
+names(Prmry)[names(Prmry)=="Cash.Flow.to.Sales"]<-"CshFlwtoSls"
+names(Prmry)[names(Prmry)=="Fixed.Assets.to.Assets"]<-"FxdAssttoAsst"
+names(Prmry)[names(Prmry)=="Current.Liability.to.Liability"]<-"CrntLbltytoLblty"
+names(Prmry)[names(Prmry)=="Current.Liability.to.Equity"]<-"CrntLbltytoEqty"
+names(Prmry)[names(Prmry)=="Equity.to.Long.term.Liability"]<-"EqtytoLngTrmLblty"
+names(Prmry)[names(Prmry)=="Cash.Flow.to.Total.Assets"]<-"CshFlwtoTtlAsst"
+names(Prmry)[names(Prmry)=="Cash.Flow.to.Liability"]<-"CshFlwtoLblty"
+names(Prmry)[names(Prmry)=="CFO.to.Assets"]<-"CFOtoAsst"
+names(Prmry)[names(Prmry)=="Cash.Flow.to.Equity"]<-"CshFlwtoEqty"
+names(Prmry)[names(Prmry)=="Current.Liability.to.Current.Assets"]<-"CrntLbltytoCrntAsst"
+names(Prmry)[names(Prmry)=="Liability.Assets.Flag"]<-"LbltyAsstFlg"
+names(Prmry)[names(Prmry)=="Net.Income.to.Total.Assets"]<-"NtIncmtoTtlAsst"
+names(Prmry)[names(Prmry)=="Total.assets.to.GNP.price"]<-"TtlAssttoGNPprc"
+names(Prmry)[names(Prmry)=="No.credit.Interval"]<-"NoCrdIntrvl"
+names(Prmry)[names(Prmry)=="Gross.Profit.to.Sales"]<-"GrssPrfttoSales"
+names(Prmry)[names(Prmry)=="Net.Income.to.Stockholder.s.Equity"]<-"NtIncmtoStckhldrEqty"
+names(Prmry)[names(Prmry)=="Liability.to.Equity"]<-"LbltytoEqty"
+names(Prmry)[names(Prmry)=="Degree.of.Financial.Leverage..DFL."]<-"DgrOfFinLvrgDFL"
+names(Prmry)[names(Prmry)=="Interest.Coverage.Ratio..Interest.expense.to.EBIT."]<-"IntcvrgRatio"
+names(Prmry)[names(Prmry)=="Net.Income.Flag"]<-"NtIncmFlg"
+names(Prmry)[names(Prmry)=="Equity.to.Liability"]<-"EqtytoLblty"
+```
+
+```{r}
+str(Prmry)
+```
+There are three integer (int) type of variables including the DEPENDENT variable "Bankrupt.". The other two are 'Net.Income.Flag' and 'Liability.Assets.Flag'. The Net.Income.Flag (NtIncmFlg) contains only '1' for whole data column. And the other integer type contains '0' for 6811 entities and '1' in only 8 entities. So, these two have no influence over the determination of bankruptcy. Research.and.development.expense.rate (R_DExpRate), Operating.Expense.Rate (OpExpRate) are two widely ranged (0 to $9990000000) attributes. I eliminated these variables initially to avoid any misleading results in predicting the bankruptcy. New dataframe is named DATA_1.
+```{r}
+Prmry$Bankrupt.<-as.factor(Prmry$Bankrupt.)
+Prmry$LbltyAsstFlg<-as.factor(Prmry$LbltyAsstFlg)
+Prmry$NtIncmFlg<-as.factor(Prmry$NtIncmFlg)
+table(Prmry$NtIncmFlg)
+table(Prmry$LbltyAsstFlg)
+summary(Prmry$R_DExpRate)
+summary(Prmry$OpExpRate)
+DATA_1<-subset(Prmry,select=-c(NtIncmFlg,LbltyAsstFlg,R_DExpRate,OpExpRate))
+dim(DATA_1)
+#str(DATA_1)
+```
+I can see the correlation coefficient of the dependent variables with the following codes. 
+```{r}
+options(scipen = 999) # removing exponential notation
+WHOLE_COR <-round(cor(DATA_1[,-1]),3)
+#WHOLE_COR<-round(cor(Prmry[-(Bankrupt., Net.Income.Flag, Liability.Assets.Flag]),3)
+#View(WHOLE_COR)
+```
+I tried to reduce more variables from the DATA_1 dataframe by using stepwise regression with both direction (backward and foreward).  
+Stepwise regression gives me initially 41 variables. From the summary of Stepwise regression, I observed some variables among 41 are NOT statistically significance at either 10%, 5% or 1% level. I Can reduce NINE (9) such variables from the dataframe.  
+```{r}
+#full_BankRup<-lm(Bankrupt.~.,data=DATA_1)
+#step_bankrupt<-stepAIC(full_BankRup, direction="both",trace=FALSE)
+#step_bankrupt
+#summary(step_bankrupt)
+```
+```{r}
+full_BankRupt<-lm(Bankrupt.~., data = DATA_1)#, nvmax=10, method="seqrep")
+stepAIC(full_BankRupt, direction="both", trace=FALSE)
+```
+The new dataframe with the fewer attributes is defined as DATA_11.I kept only the significant variables from the last dataframe DATA_1. There remains 28 variables in the DATA_11 dataframe.
+```{r}
+DATA_11<-subset(DATA_1, select=c(Bankrupt., ROA_Dep_B_I,ROA_BIn_AfT,ROA_BIn_Dep_Af_T,PrTxNtIntRate,Tax.rate..A.,NValPrShare_A, NValPrShare_C,RevPerShrYuanA,NtValGrwRte, Debt.ratio.., Borrowing.dependency, CntgntLiabNtWorth, OpPrfPaidinCap,TtAsstTrOvr,FxdAssTrnFrq, Revenue.per.person, OpPrfprPrsn, WrkngCaptottAsst, CshCrntLblty, OpFndtoLblty, CrntLbltsLblty,WrkngCapEqty, CshTrnRte, FxdAssttoAsst, CrntLbltytoCrntAsst, NtIncmtoTtlAsst, NtIncmtoStckhldrEqty, EqtytoLblty))
+#View(DATA_11)
+```
+In our dataset, the dependent attribute (Bankrupt.) is highly imbalanced. We should make that attribute balanced before running any algorithm. 
+```{r}
+table(DATA_11$Bankrupt.)
+barplot(prop.table(table(DATA_11$Bankrupt.)),col=rainbow(5), ylim=c(0, 1), main="Class Distribution")
+```
+Let's create training and test data set from out DATA_11 data set without handling the imbalanced data. We'll run the predictive model on that training data set.
+After balancing the class variables, I will run again the same to compare the performance of the balanced and imbalanced data.
+```{r}
+PARTITION<-sample(2,nrow(DATA_11),replace=TRUE, prob=c(0.7,0.3))
+train_set<-DATA_11[PARTITION==1,]
+test_set<-DATA_11[PARTITION==2,]
+table(train_set$Bankrupt.)
+table(test_set$Bankrupt.)
+```
+After balancing data, I run again the RANDOM FOREST algorithm.
+```{r}
+over <- ovun.sample(Bankrupt.~., data = train_set, method = "over", N = ceil(2*nrow(train_set)))
+table(over$data$Bankrupt.)
+#summary(over)
+#over$data$Bankrupt.<-as.factor(over$data$Bankrupt.)
+rfover<-randomForest(Bankrupt.~., data=over$data)
+confusionMatrix(predict(rfover, test_set),test_set$Bankrupt., positive='1')
+```
+
+```{r}
+under <- ovun.sample(Bankrupt.~., data = train_set, method = "under", N = floor(.065*nrow(train_set)))
+table(under$data$Bankrupt.)
+rfunder <- randomForest(Bankrupt.~., data=under$data)
+confusionMatrix(predict(rfunder, test_set),test_set$Bankrupt., positive='1')
+```
+
+```{r}
+both <- ovun.sample(Bankrupt.~., data=train_set, method = "both", p = 0.5, seed = 222, N = nrow(train_set))
+table(both$data$Bankrupt.)
+rfboth <- randomForest(Bankrupt.~., data=both$data)
+confusionMatrix(predict(rfboth, test_set),test_set$Bankrupt., positive='1')
+```
+
+```{r}
+Rose<-ROSE(Bankrupt.~., data=train_set, N=nrow(train_set), seed=111)
+table(Rose$data$Bankrupt.)
+rfrose <- randomForest(Bankrupt.~., data=Rose$data)
+confusionMatrix(predict(rfrose, test_set), test_set$Bankrupt., positive = '1')
+```
+CROSS VADIDATION IN CARET. We can do CROSS VALIDATION based on test data. We can mention here the positive (Bankrupt)=1
+
+```{r}
+train_set_CV<-createDataPartition(DATA_11[,"Bankrupt."],p=0.7, list=FALSE)
+trn.CV<-DATA_11[train_set_CV,]
+tst.CV<-DATA_11[-train_set_CV,]
+cntr<-trainControl(method="cv", number=10)
+fit.cv<-train(Bankrupt.~., data=trn.CV, method="knn", trControl=cntr, preProcess=c("center","scale"),tuneGrid=data.frame(k=seq(5,40, by=5)))
+pred<-predict(fit.cv,tst.CV)
+confusionMatrix(table(tst.CV[,"Bankrupt."],pred), positive='1')
+print(fit.cv)
+plot(fit.cv)
+```
+If we want results in details, the following codes will work. 
+
+```{r}
+cntr_1<-trainControl(method="cv", number=10, summaryFunction = multiClassSummary)
+fit.cv_1<-train(Bankrupt.~., data=trn.CV, method="knn", trControl=cntr_1, preProcess=c("center","scale"),tuneLength=20, metric="Kappa")
+pred_1<-predict(fit.cv_1,tst.CV)
+confusionMatrix(table(tst.CV[,"Bankrupt."],pred_1), positive='1')
+plot(fit.cv_1)
+#print(fit.cv_1)
+```
+
+KNN ALGORITHM:
+In K Nearest Neighbor (KNN) algorithm, we need to normalize the numerical attributes. First we will use a function 'normalize' to ust it further to normalize the data frame. 
+```{r}
+install.packages("lapply")
+library('lapply')
+DATA_11KNN<-DATA_11
+table(DATA_11KNN$Bankrupt.)
+
+normalize<- function(x){
+  return((x-min(x))/(max(x)-min(x)))}
+DATA_11KNN_norm<-as.data.frame(sapply(DATA_11KNN, normalize))
+
+#str(train_set)
+#str(test_set)
+#train_set$Bankrupt.<-as.factor(train_set$Bankrupt.)
+#test_set$Bankrupt.<-as.factor(test_set$Bankrupt.)
+Rf_train<-randomForest(Bankrupt.~.,train_set)
+```
+
+
+
+
+```{r}
+pred<-predict(fit.cv,tst.CV)
+pred.prob<-predict(fit.cv,tst.CV, type='prob')
+confusionMatrix(table(tst.CV[,"Bankrupt."],pred))
+```
+```{r}
+print(fit.cv)
+plot(fit.cv)
+```
